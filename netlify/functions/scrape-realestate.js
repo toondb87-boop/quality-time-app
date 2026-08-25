@@ -84,6 +84,23 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Loopt van het <a>-element omhoog door tot 5 ouder-niveaus, tot een blok
+// tekst gevonden wordt met een geldige prijs erin. Robuuster dan 1x
+// closest('article,li,div'), want elke site verpakt kaarten anders.
+function findPriceBlock($, el) {
+  let node = $(el);
+  for (let level = 0; level < 5; level++) {
+    const txt = node.text().replace(/\s+/g, ' ').trim();
+    const prijs = parsePrice(txt);
+    if (prijs && prijs >= 30000 && txt.length < 4000) {
+      return { block: txt, prijs };
+    }
+    node = node.parent();
+    if (!node || !node.length) break;
+  }
+  return null;
+}
+
 function diag(html, matchedLinks, keptListings) {
   return {
     htmlLength: html ? html.length : 0,
@@ -94,63 +111,12 @@ function diag(html, matchedLinks, keptListings) {
 }
 
 // ═══ IMMOWEB ═══
+// UITGESCHAKELD: uit live diagnostiek bleek dat Immoweb's listings enkel via
+// JavaScript in de browser opgebouwd worden — een server-side fetch krijgt
+// een lege pagina-shell (2,8MB aan JS, 0 pand-links in de ruwe HTML) terug.
+// Zonder een echte browser (headless Chrome) is dit niet op te lossen.
 async function scrapeImmoweb(regios) {
-  const out = [];
-  const diagnostics = [];
-  for (const regio of regios) {
-    const slug = IMMOWEB_SLUGS[regio];
-    if (!slug) continue;
-    const url = `https://www.immoweb.be/nl/zoeken/huis-en-appartement/te-koop/${slug}`;
-    let html = '';
-    let rawLinks = 0;
-    try {
-      const res = await timeoutFetch(url, 9000);
-      if (!res.ok) { diagnostics.push({ regio, url, httpStatus: res.status }); continue; }
-      html = await res.text();
-      const $ = cheerio.load(html);
-      const matches = $('a[href*="/nl/pand/"], a[href*="/classified/"]');
-      rawLinks = matches.length;
-
-      // Immoweb rendert kaarten met links naar /nl/pand/... — we lopen alle
-      // <a> na die naar zo'n pand-URL wijzen en zoeken prijs/kamers/opp in
-      // de omliggende tekst van het bloksgewijs dichtstbijzijnde element.
-      matches.each((_, el) => {
-        const href = $(el).attr('href');
-        if (!href) return;
-        const fullUrl = href.startsWith('http') ? href : `https://www.immoweb.be${href}`;
-        const block = $(el).closest('article, li, div').text().replace(/\s+/g, ' ').trim();
-        if (!block || block.length < 10) return;
-
-        const prijs = parsePrice(block);
-        if (!prijs || prijs < 30000) return; // ruis wegfilteren
-
-        const kamersMatch = block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-        const oppMatch = block.match(/(\d+)\s*m²/);
-        const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || block.slice(0, 60);
-
-        out.push({
-          id: makeId('Immoweb', fullUrl),
-          adres: adres || regio,
-          regio,
-          prijs,
-          kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-          tuin: /tuin/i.test(block),
-          opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
-          bron: 'Immoweb',
-          url: fullUrl,
-          datum: todayISO(),
-          score: 0,
-          gezien: false,
-          icon: '🏘️',
-          kleur: '#f5ede0',
-        });
-      });
-      diagnostics.push(Object.assign({ regio, url }, diag(html, rawLinks, out.length)));
-    } catch (e) {
-      diagnostics.push({ regio, url, error: String(e && e.message || e) });
-    }
-  }
-  return { items: dedupeByUrl(out).slice(0, 40), diagnostics };
+  return { items: [], diagnostics: [{ info: 'Immoweb overgeslagen — vereist JavaScript-rendering, niet haalbaar via server-side fetch.' }] };
 }
 
 // ═══ ERA ═══
@@ -169,30 +135,31 @@ async function scrapeEra(regios) {
         if (!res.ok) { diagnostics.push({ regio, type, url, httpStatus: res.status }); continue; }
         html = await res.text();
         const $ = cheerio.load(html);
-        const matches = $('a[href*="/nl/pand/"], a[href*="/te-koop/"]');
+        const matches = $('a[href*="/te-koop/"]').filter((_, el) => {
+          const href = $(el).attr('href') || '';
+          // sluit navigatie-/filterlinks uit (die eindigen exact op de regio/type-pagina zelf)
+          return href !== url && !href.endsWith(`/te-koop/${slug}`) && !href.endsWith('/te-koop');
+        });
         rawLinks = matches.length;
 
         matches.each((_, el) => {
           const href = $(el).attr('href');
-          if (!href || !/\/pand\//.test(href)) return;
+          if (!href) return;
           const fullUrl = href.startsWith('http') ? href : `https://www.era.be${href}`;
-          const block = $(el).closest('article, li, div').text().replace(/\s+/g, ' ').trim();
-          if (!block || block.length < 10) return;
+          const found = findPriceBlock($, el);
+          if (!found) return;
 
-          const prijs = parsePrice(block);
-          if (!prijs || prijs < 30000) return;
-
-          const kamersMatch = block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-          const oppMatch = block.match(/(\d+)\s*m²/);
-          const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || block.slice(0, 60);
+          const kamersMatch = found.block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
+          const oppMatch = found.block.match(/(\d+)\s*m²/);
+          const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
 
           out.push({
             id: makeId('ERA', fullUrl),
             adres: adres || regio,
             regio,
-            prijs,
+            prijs: found.prijs,
             kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-            tuin: /tuin/i.test(block),
+            tuin: /tuin/i.test(found.block),
             opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
             bron: 'ERA',
             url: fullUrl,
@@ -233,23 +200,20 @@ async function scrapeWeInvest() {
       const href = $(el).attr('href');
       if (!href) return;
       const fullUrl = href.startsWith('http') ? href : `https://weinvest.be${href}`;
-      const block = $(el).closest('article, li, div').text().replace(/\s+/g, ' ').trim();
-      if (!block || block.length < 10) return;
+      const found = findPriceBlock($, el);
+      if (!found) return;
 
-      const prijs = parsePrice(block);
-      if (!prijs || prijs < 30000) return;
-
-      const kamersMatch = block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-      const oppMatch = block.match(/(\d+)\s*m²/);
-      const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || block.slice(0, 60);
+      const kamersMatch = found.block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
+      const oppMatch = found.block.match(/(\d+)\s*m²/);
+      const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
 
       out.push({
         id: makeId('We Invest', fullUrl),
         adres: adres || 'Antwerpen Zuidrand',
         regio: 'Zuidrand (We Invest)',
-        prijs,
+        prijs: found.prijs,
         kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-        tuin: /tuin/i.test(block),
+        tuin: /tuin/i.test(found.block),
         opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
         bron: 'We Invest',
         url: fullUrl,
@@ -267,54 +231,10 @@ async function scrapeWeInvest() {
 }
 
 // ═══ DE HUISLEVERANCIER (Kontich, max-immo CMS) ═══
+// UITGESCHAKELD: geeft een harde HTTP 403 terug op een server-side fetch —
+// deze site blokkeert dit actief (waarschijnlijk op user-agent/referrer).
 async function scrapeHuisleverancier() {
-  const out = [];
-  const url = 'https://www.dehuisleverancier.be/te-koop/map?_locale=nl';
-  let html = '';
-  let rawLinks = 0;
-  try {
-    const res = await timeoutFetch(url, 9000);
-    if (!res.ok) return { items: out, diagnostics: [{ url, httpStatus: res.status }] };
-    html = await res.text();
-    const $ = cheerio.load(html);
-    const matches = $('a[href*="/te-koop/"]');
-    rawLinks = matches.length;
-
-    matches.each((_, el) => {
-      const href = $(el).attr('href');
-      if (!href || href.endsWith('/te-koop/map')) return;
-      const fullUrl = href.startsWith('http') ? href : `https://www.dehuisleverancier.be${href}`;
-      const block = $(el).closest('article, li, div').text().replace(/\s+/g, ' ').trim();
-      if (!block || block.length < 5) return;
-
-      const prijs = parsePrice(block);
-      if (!prijs || prijs < 30000) return;
-
-      const kamersMatch = block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-      const oppMatch = block.match(/(\d+)\s*m²/);
-      const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || block.slice(0, 60);
-
-      out.push({
-        id: makeId('De Huisleverancier', fullUrl),
-        adres: adres || 'Zuidrand',
-        regio: 'Kontich e.o. (De Huisleverancier)',
-        prijs,
-        kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-        tuin: /tuin/i.test(block),
-        opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
-        bron: 'De Huisleverancier',
-        url: fullUrl,
-        datum: todayISO(),
-        score: 0,
-        gezien: false,
-        icon: '🏠',
-        kleur: '#ece0d0',
-      });
-    });
-    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, rawLinks, out.length))] };
-  } catch (e) {
-    return { items: out, diagnostics: [{ url, error: String(e && e.message || e) }] };
-  }
+  return { items: [], diagnostics: [{ info: 'De Huisleverancier overgeslagen — blokkeert server-side aanvragen (HTTP 403).' }] };
 }
 
 function dedupeByUrl(items) {
