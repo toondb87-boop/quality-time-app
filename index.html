@@ -4371,6 +4371,30 @@ input, select, textarea{
           </div>
           <div id="zangAudioList" style="margin-top:14px"></div>
         </div>
+      </div><div class="card" style="margin-top:12px">
+        <div class="card-header">
+          <div class="card-label">Zangles</div>
+          <div class="card-title">🎵 NUMMERS OM TE OEFENEN</div>
+        </div>
+        <div class="settings-section" style="padding:16px 16px 20px">
+          <div class="settings-row" style="border:none;padding-bottom:10px">
+            <div class="settings-label-sub" style="color:#d8c8b0;font-size:12px">Voeg instrumentale versies toe van nummers waarop je wil zingen. Bij het starten van een zangles kan je kiezen welk nummer je die keer wil oefenen — dat speelt automatisch af na de oefeningen.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <input type="text" id="zsTitel" placeholder="Songtitel *" class="settings-input" style="width:100%">
+            <input type="text" id="zsUitvoerder" placeholder="Uitvoerder" class="settings-input" style="width:100%">
+            <input type="text" id="zsToonaard" placeholder="Toonaard, bv. C majeur" class="settings-input" style="width:100%">
+            <input type="file" id="zsFile" accept="audio/*,.mp3,.m4a,.wav,.aac,audio/mpeg,audio/mp3,audio/x-m4a" style="display:none" onchange="document.getElementById('zsFileLabel').textContent = (this.files[0] ? this.files[0].name : 'Instrumentale mp3 kiezen…')">
+            <div class="axxes-upload-box" onclick="document.getElementById('zsFile').click()" style="padding:12px">
+              <div class="aui" style="font-size:16px">⬆️</div>
+              <div class="aut" id="zsFileLabel" style="font-size:11px">Instrumentale mp3 kiezen…</div>
+            </div>
+            <button class="settings-primary-btn" onclick="zangSongAdd()">+ Nummer toevoegen</button>
+            <div id="zsStatus"></div>
+          </div>
+          <div style="height:1px;background:var(--sand3);margin:14px 0"></div>
+          <div id="zangSongsList"></div>
+        </div>
       </div></div>
 
   </div><!-- einde page-settings -->
@@ -7424,6 +7448,7 @@ Geef alle 100 recepten terug.`;
 // ── SETTINGS PAGE RENDER ──
 function renderSettingsPage() {
   if(typeof renderZangAudioSettingsList === 'function') renderZangAudioSettingsList();
+  if(typeof renderZangSongsList === 'function') renderZangSongsList();
   // Fill in saved values
   function el(id){return document.getElementById(id);}
   ['name','weight','targetweight','kcal','startdate'].forEach(function(k) {
@@ -13756,6 +13781,45 @@ var zangSheetIndex = 0;
 var zangSheetView  = 'zangles';
 
 function openZangPage() {
+  if(ZANG_SONGS.length > 0) {
+    zangShowSongPicker();
+  } else {
+    switchTab('zang', null);
+  }
+}
+
+// Tussenscherm: "Welk nummer wil je oefenen?" — enkel getoond als er nummers zijn toegevoegd
+function zangShowSongPicker() {
+  var existing = document.getElementById('zangSongPickerModal');
+  if(existing) existing.remove();
+  var options = ZANG_SONGS.map(function(s){
+    var label = s.titel + (s.uitvoerder ? ' — ' + s.uitvoerder : '');
+    return '<option value="'+s.id+'"'+(zangChosenSongId===s.id?' selected':'')+'>'+label.replace(/</g,'&lt;')+'</option>';
+  }).join('');
+  var html = ''
+    + '<div id="zangSongPickerModal" style="position:fixed;inset:0;z-index:9600;background:rgba(10,8,4,.75);display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) zangClosePicker()">'
+    + '<div style="background:#fff;border:1.5px solid var(--brut-ink,#0a0a0a);border-radius:16px;box-shadow:4px 4px 0 var(--brut-ink,#0a0a0a);max-width:360px;width:100%;padding:22px 20px">'
+    + '<div style="font-family:var(--cond);font-size:17px;font-weight:900;color:var(--brut-ink,#0a0a0a);margin-bottom:14px">Welk nummer wil je oefenen?</div>'
+    + '<select id="zangSongPickerSelect" style="width:100%;padding:11px;border:1.5px solid var(--brut-ink,#0a0a0a);border-radius:10px;font-family:var(--body);font-size:13px;margin-bottom:14px;background:#fff">'
+    + '<option value="">— Geen specifiek nummer —</option>'
+    +   options
+    + '</select>'
+    + '<button onclick="zangConfirmSongPicker()" style="width:100%;background:var(--surf-teal,#1F7A6C);color:#fff;border:1.5px solid var(--brut-ink,#0a0a0a);box-shadow:2px 2px 0 var(--brut-ink,#0a0a0a);border-radius:12px;font-family:var(--grotesk);font-size:12px;font-weight:700;padding:12px;cursor:pointer">Start les →</button>'
+    + '</div>'
+    + '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function zangClosePicker() {
+  var el = document.getElementById('zangSongPickerModal');
+  if(el) el.remove();
+}
+function zangConfirmSongPicker() {
+  var sel = document.getElementById('zangSongPickerSelect');
+  var val = sel ? sel.value : '';
+  zangChosenSongId = val || null;
+  if(zangChosenSongId) localStorage.setItem('wf_zang_chosen_song', zangChosenSongId);
+  else localStorage.removeItem('wf_zang_chosen_song');
+  zangClosePicker();
   switchTab('zang', null);
 }
 function renderZangPage() {
@@ -13839,6 +13903,7 @@ function renderZangSheetContent() {
     + '<div class="ds-section-lbl">🎵 Song</div>'
     + '<div class="zang-song-title" style="font-family:var(--serif);font-size:14px;font-style:italic;margin-bottom:6px">'+zp.song+'</div>'
     + '<div style="font-family:var(--body);font-size:12px;color:var(--surf-teal-dark);opacity:.8">'+zp.task+'</div>'
+    + zangChosenSongBlockHtml()
     + '</div>'
     + '<div class="ds-section">'
     + '<div class="zang-eyebrow" style="font-family:var(--grotesk);font-size:9px;letter-spacing:2px;font-weight:700;margin-bottom:4px">FOCUS</div>'
@@ -13855,6 +13920,21 @@ function renderZangSheetContent() {
 }
 
 // ─── Automatisch doorspelen van zang-oefeningen ─────────────────────────
+
+// Bouwt het blok met het door de gebruiker gekozen nummer (om nadien op te zingen)
+function zangChosenSongBlockHtml() {
+  if(!zangChosenSongId) return '';
+  var song = ZANG_SONGS.find(function(s){ return s.id === zangChosenSongId; });
+  if(!song) return '';
+  var meta = [song.uitvoerder, song.toonaard].filter(Boolean).join(' · ');
+  return '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08)">'
+    + '<div style="font-family:var(--grotesk);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--surf-coral,#FF7A5C);margin-bottom:4px">🎤 Zing mee op</div>'
+    + '<div style="font-family:var(--cond);font-size:14px;font-weight:700;color:var(--ink)">'+song.titel.replace(/</g,'&lt;')+'</div>'
+    + (meta ? '<div style="font-family:var(--cond);font-size:10px;color:var(--stone2);margin-bottom:6px">'+meta.replace(/</g,'&lt;')+'</div>' : '')
+    + '<audio id="zangChosenSongAudio" controls preload="none" style="width:100%;margin-top:6px" src="'+zangSongAudioUrl(song.id)+'"></audio>'
+    + '<div style="font-family:var(--body);font-size:10px;color:var(--stone2);margin-top:4px">Speelt automatisch nadat je alle oefeningen hierboven hebt afgerond.</div>'
+    + '</div>';
+}
 
 var zangIntroShown = false;
 function zangAudioOnPlay(idx) {
@@ -13908,6 +13988,12 @@ function zangSessionComplete() {
   // Sessie volledig doorlopen: automatisch afmelden als dat nog niet gebeurd was
   var zp = ZANG_PLAN[zangSheetIndex];
   if(zp && !zangIsSessionDone(zp.date)) zangToggleAfmelden();
+  // Gekozen nummer automatisch starten om op te zingen
+  var songEl = document.getElementById('zangChosenSongAudio');
+  if(songEl) {
+    var p = songEl.play();
+    if(p && p.catch) p.catch(function(){ /* autoplay geblokkeerd — gebruiker kan zelf op play tikken */ });
+  }
 }
 
 // ─── Zanglessen afmelden + progressie ───────────────────────────────────
@@ -16078,10 +16164,11 @@ var zangAudioDB = null;
 
 function zangAudioOpenDB(cb){
   if(zangAudioDB){ cb(zangAudioDB); return; }
-  var req = indexedDB.open('wf_zangaudio_db', 1);
+  var req = indexedDB.open('wf_zangaudio_db', 2);
   req.onupgradeneeded = function(e){
     var db = e.target.result;
     if(!db.objectStoreNames.contains('files')) db.createObjectStore('files', {keyPath:'name'});
+    if(!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', {keyPath:'id'});
   };
   req.onsuccess = function(e){ zangAudioDB = e.target.result; cb(zangAudioDB); };
   req.onerror = function(){ alert('Kon lokale opslag niet openen voor zang-mp3\'s.'); };
@@ -16209,6 +16296,101 @@ function renderZangAudioSettingsList(){
     };
   });
 }
+// ═══ ZANGLESSEN — NUMMERS OM TE OEFENEN (instrumentale versies) ═══════════
+// Aparte bibliotheek naast de oefen-mp3's: songs met titel/uitvoerder/toonaard
+// + een instrumentale mp3, waarop de gebruiker nadien gaat zingen.
+var ZANG_SONGS = JSON.parse(localStorage.getItem('wf_zang_songs') || '[]');
+var ZANG_SONG_AUDIO_CACHE = {}; // id -> object URL (in-memory, per sessie)
+var zangChosenSongId = localStorage.getItem('wf_zang_chosen_song') || null;
+
+function zangSongsSave(){ localStorage.setItem('wf_zang_songs', JSON.stringify(ZANG_SONGS)); }
+
+function zangSongAudioUrl(id){ return ZANG_SONG_AUDIO_CACHE[id] || ''; }
+
+// Laadt alle eerder geüploade song-mp3's uit IndexedDB in de in-memory cache (bij opstarten)
+function zangSongsPreload(cb){
+  zangAudioOpenDB(function(db){
+    var tx = db.transaction('songs','readonly');
+    var req = tx.objectStore('songs').getAll();
+    req.onsuccess = function(){
+      (req.result || []).forEach(function(rec){
+        ZANG_SONG_AUDIO_CACHE[rec.id] = URL.createObjectURL(rec.blob);
+      });
+      if(cb) cb();
+    };
+    req.onerror = function(){ if(cb) cb(); };
+  });
+}
+
+function zangSongAdd(){
+  var titelEl = document.getElementById('zsTitel');
+  var uitvEl  = document.getElementById('zsUitvoerder');
+  var toonEl  = document.getElementById('zsToonaard');
+  var fileEl  = document.getElementById('zsFile');
+  var statusEl = document.getElementById('zsStatus');
+  if(!titelEl || !fileEl) return;
+
+  var titel = titelEl.value.trim();
+  var uitvoerder = uitvEl ? uitvEl.value.trim() : '';
+  var toonaard = toonEl ? toonEl.value.trim() : '';
+  var file = fileEl.files && fileEl.files[0];
+
+  if(!titel || !file){
+    if(statusEl) statusEl.innerHTML = '<div style="font-family:var(--cond);font-size:9px;font-weight:700;color:var(--surf-coral);margin-top:4px">Vul minstens een songtitel in en kies een mp3.</div>';
+    return;
+  }
+
+  var id = 'song_' + Date.now();
+  zangAudioOpenDB(function(db){
+    var tx = db.transaction('songs','readwrite');
+    tx.objectStore('songs').put({id:id, blob:file, size:file.size, type:file.type, date:new Date().toISOString()});
+    tx.oncomplete = function(){
+      ZANG_SONG_AUDIO_CACHE[id] = URL.createObjectURL(file);
+      ZANG_SONGS.push({id:id, titel:titel, uitvoerder:uitvoerder, toonaard:toonaard, filename:file.name});
+      zangSongsSave();
+      titelEl.value = ''; if(uitvEl) uitvEl.value = ''; if(toonEl) toonEl.value = ''; fileEl.value = '';
+      if(statusEl) statusEl.innerHTML = '<div style="font-family:var(--cond);font-size:9px;font-weight:700;color:#2f8f6f;margin-top:4px">✓ Nummer toegevoegd.</div>';
+      renderZangSongsList();
+    };
+  });
+}
+
+function zangSongDelete(id, ev){
+  if(ev) ev.stopPropagation();
+  var song = ZANG_SONGS.find(function(s){ return s.id === id; });
+  if(!confirm('Nummer "'+(song?song.titel:'')+'" verwijderen?')) return;
+  zangAudioOpenDB(function(db){
+    var tx = db.transaction('songs','readwrite');
+    tx.objectStore('songs').delete(id);
+    tx.oncomplete = function(){
+      if(ZANG_SONG_AUDIO_CACHE[id]){ URL.revokeObjectURL(ZANG_SONG_AUDIO_CACHE[id]); delete ZANG_SONG_AUDIO_CACHE[id]; }
+      ZANG_SONGS = ZANG_SONGS.filter(function(s){ return s.id !== id; });
+      zangSongsSave();
+      if(zangChosenSongId === id){ zangChosenSongId = null; localStorage.removeItem('wf_zang_chosen_song'); }
+      renderZangSongsList();
+    };
+  });
+}
+
+function renderZangSongsList(){
+  var el = document.getElementById('zangSongsList');
+  if(!el) return;
+  if(!ZANG_SONGS.length){
+    el.innerHTML = '<div style="font-family:var(--body);font-size:12px;font-style:italic;color:var(--stone2)">Nog geen nummers toegevoegd.</div>';
+    return;
+  }
+  el.innerHTML = ZANG_SONGS.map(function(s){
+    var meta = [s.uitvoerder, s.toonaard].filter(Boolean).join(' · ');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--sand2)">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-family:var(--cond);font-size:12px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+s.titel.replace(/</g,'&lt;')+'</div>'
+      + (meta ? '<div style="font-family:var(--cond);font-size:9px;color:var(--stone2)">'+meta.replace(/</g,'&lt;')+'</div>' : '')
+      + '</div>'
+      + '<button onclick="zangSongDelete(\''+s.id+'\', event)" style="background:none;border:none;color:var(--surf-coral);font-size:14px;cursor:pointer;flex-shrink:0">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
 // Zorg dat elke zangles-datum als agenda-item met notificatie in de kalender staat
 function syncZangPlanToAgenda() {
   var changed = false;
@@ -16270,6 +16452,9 @@ setTimeout(() => refreshICSCache(true).then(() => { renderAgendaToday(dk(new Dat
 zangAudioPreload(function(){
   if(typeof renderZangSheetContent === 'function') renderZangSheetContent();
   if(typeof renderZangAudioSettingsList === 'function') renderZangAudioSettingsList();
+});
+zangSongsPreload(function(){
+  if(typeof renderZangSongsList === 'function') renderZangSongsList();
 });
 
 
