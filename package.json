@@ -1,0 +1,9 @@
+{
+  "name": "quality-time-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quality Time app — Netlify functions (o.a. real-estate scraper en ics-proxy)",
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}
