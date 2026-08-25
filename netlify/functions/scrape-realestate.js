@@ -84,23 +84,37 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function diag(html, matchedLinks, keptListings) {
+  return {
+    htmlLength: html ? html.length : 0,
+    looksLikeCookieWall: !!(html && /cookie|consent|toestemming/i.test(html.slice(0, 3000))),
+    rawLinksFound: matchedLinks,
+    listingsKept: keptListings,
+  };
+}
+
 // ═══ IMMOWEB ═══
 async function scrapeImmoweb(regios) {
   const out = [];
+  const diagnostics = [];
   for (const regio of regios) {
     const slug = IMMOWEB_SLUGS[regio];
     if (!slug) continue;
     const url = `https://www.immoweb.be/nl/zoeken/huis-en-appartement/te-koop/${slug}`;
+    let html = '';
+    let rawLinks = 0;
     try {
       const res = await timeoutFetch(url, 9000);
-      if (!res.ok) continue;
-      const html = await res.text();
+      if (!res.ok) { diagnostics.push({ regio, url, httpStatus: res.status }); continue; }
+      html = await res.text();
       const $ = cheerio.load(html);
+      const matches = $('a[href*="/nl/pand/"], a[href*="/classified/"]');
+      rawLinks = matches.length;
 
       // Immoweb rendert kaarten met links naar /nl/pand/... — we lopen alle
       // <a> na die naar zo'n pand-URL wijzen en zoeken prijs/kamers/opp in
       // de omliggende tekst van het bloksgewijs dichtstbijzijnde element.
-      $('a[href*="/nl/pand/"], a[href*="/classified/"]').each((_, el) => {
+      matches.each((_, el) => {
         const href = $(el).attr('href');
         if (!href) return;
         const fullUrl = href.startsWith('http') ? href : `https://www.immoweb.be${href}`;
@@ -131,28 +145,34 @@ async function scrapeImmoweb(regios) {
           kleur: '#f5ede0',
         });
       });
+      diagnostics.push(Object.assign({ regio, url }, diag(html, rawLinks, out.length)));
     } catch (e) {
-      // stille fout per regio — andere regio's / bronnen gaan gewoon door
+      diagnostics.push({ regio, url, error: String(e && e.message || e) });
     }
   }
-  return dedupeByUrl(out).slice(0, 40);
+  return { items: dedupeByUrl(out).slice(0, 40), diagnostics };
 }
 
 // ═══ ERA ═══
 async function scrapeEra(regios) {
   const out = [];
+  const diagnostics = [];
   for (const regio of regios) {
     const slug = ERA_SLUGS[regio];
     if (!slug) continue;
     for (const type of ['huis', 'appartement']) {
       const url = `https://www.era.be/nl/te-koop/${slug}/${type}`;
+      let html = '';
+      let rawLinks = 0;
       try {
         const res = await timeoutFetch(url, 9000);
-        if (!res.ok) continue;
-        const html = await res.text();
+        if (!res.ok) { diagnostics.push({ regio, type, url, httpStatus: res.status }); continue; }
+        html = await res.text();
         const $ = cheerio.load(html);
+        const matches = $('a[href*="/nl/pand/"], a[href*="/te-koop/"]');
+        rawLinks = matches.length;
 
-        $('a[href*="/nl/pand/"], a[href*="/te-koop/"]').each((_, el) => {
+        matches.each((_, el) => {
           const href = $(el).attr('href');
           if (!href || !/\/pand\//.test(href)) return;
           const fullUrl = href.startsWith('http') ? href : `https://www.era.be${href}`;
@@ -183,12 +203,13 @@ async function scrapeEra(regios) {
             kleur: '#ece0d0',
           });
         });
+        diagnostics.push(Object.assign({ regio, type, url }, diag(html, rawLinks, out.length)));
       } catch (e) {
-        // volgende regio/type
+        diagnostics.push({ regio, type, url, error: String(e && e.message || e) });
       }
     }
   }
-  return dedupeByUrl(out).slice(0, 40);
+  return { items: dedupeByUrl(out).slice(0, 40), diagnostics };
 }
 
 // ═══ WE INVEST ANTWERPEN ZUIDRAND ═══
@@ -198,13 +219,17 @@ async function scrapeEra(regios) {
 async function scrapeWeInvest() {
   const out = [];
   const url = 'https://weinvest.be/nl-BE/agencies/antwerpen-zuidrand/50';
+  let html = '';
+  let rawLinks = 0;
   try {
     const res = await timeoutFetch(url, 9000);
-    if (!res.ok) return out;
-    const html = await res.text();
+    if (!res.ok) return { items: out, diagnostics: [{ url, httpStatus: res.status }] };
+    html = await res.text();
     const $ = cheerio.load(html);
+    const matches = $('a[href*="/nl-BE/property/"]');
+    rawLinks = matches.length;
 
-    $('a[href*="/nl-BE/property/"]').each((_, el) => {
+    matches.each((_, el) => {
       const href = $(el).attr('href');
       if (!href) return;
       const fullUrl = href.startsWith('http') ? href : `https://weinvest.be${href}`;
@@ -235,23 +260,27 @@ async function scrapeWeInvest() {
         kleur: '#f5ede0',
       });
     });
+    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, rawLinks, out.length))] };
   } catch (e) {
-    // geeft gewoon lege lijst terug
+    return { items: out, diagnostics: [{ url, error: String(e && e.message || e) }] };
   }
-  return dedupeByUrl(out).slice(0, 40);
 }
 
 // ═══ DE HUISLEVERANCIER (Kontich, max-immo CMS) ═══
 async function scrapeHuisleverancier() {
   const out = [];
   const url = 'https://www.dehuisleverancier.be/te-koop/map?_locale=nl';
+  let html = '';
+  let rawLinks = 0;
   try {
     const res = await timeoutFetch(url, 9000);
-    if (!res.ok) return out;
-    const html = await res.text();
+    if (!res.ok) return { items: out, diagnostics: [{ url, httpStatus: res.status }] };
+    html = await res.text();
     const $ = cheerio.load(html);
+    const matches = $('a[href*="/te-koop/"]');
+    rawLinks = matches.length;
 
-    $('a[href*="/te-koop/"]').each((_, el) => {
+    matches.each((_, el) => {
       const href = $(el).attr('href');
       if (!href || href.endsWith('/te-koop/map')) return;
       const fullUrl = href.startsWith('http') ? href : `https://www.dehuisleverancier.be${href}`;
@@ -282,10 +311,10 @@ async function scrapeHuisleverancier() {
         kleur: '#ece0d0',
       });
     });
+    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, rawLinks, out.length))] };
   } catch (e) {
-    // geeft gewoon lege lijst terug
+    return { items: out, diagnostics: [{ url, error: String(e && e.message || e) }] };
   }
-  return dedupeByUrl(out).slice(0, 40);
 }
 
 function dedupeByUrl(items) {
@@ -320,14 +349,18 @@ exports.handler = async (event) => {
     const bronnen = ['Immoweb', 'ERA', 'We Invest', 'De Huisleverancier'];
     const listings = [];
     const status = {};
+    const debug = {};
 
     results.forEach((r, i) => {
       const naam = bronnen[i];
       if (r.status === 'fulfilled') {
-        listings.push(...r.value);
-        status[naam] = { ok: true, count: r.value.length };
+        const { items, diagnostics } = r.value;
+        listings.push(...items);
+        status[naam] = { ok: true, count: items.length };
+        debug[naam] = diagnostics;
       } else {
         status[naam] = { ok: false, error: String(r.reason && r.reason.message || r.reason) };
+        debug[naam] = null;
       }
     });
 
@@ -337,6 +370,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         listings,
         status,
+        debug,
         fetchedAt: new Date().toISOString(),
       }),
     };
