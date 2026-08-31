@@ -158,7 +158,7 @@ function extractFromBlock(block) {
 // nummer en postcode vloeien dus letterlijk in elkaar over. We zoeken het
 // kortste getal vóór een geldige 4-cijferige postcode + gemeentenaam.
 function extractImmoscoopAddress(block) {
-  const m = block.match(/([A-ZÀ-Ý][A-Za-zÀ-ÿ.'\s-]*?\d+?[a-zA-Z]?)(\d{4})([A-ZÀ-Ý][a-zà-ÿ]+)/);
+  const m = block.match(/([A-ZÀ-Ý][A-Za-zÀ-ÿ.'\s-]*?\d+?[a-zA-Z]?)(\d{4})\s?([A-ZÀ-Ý][a-zà-ÿ]+)/i);
   if (!m) return null;
   const straat = m[1].trim();
   if (straat.length < 4) return null;
