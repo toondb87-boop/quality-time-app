@@ -1,20 +1,26 @@
 // netlify/functions/scrape-realestate.js
 //
-// Haalt live vastgoedaanbod op bij de bronnen waarvan we hebben geverifieerd
-// dat ze (op het moment van schrijven) geen bot-bescherming hebben die een
-// server-side fetch blokkeert: Immoweb, ERA, We Invest Antwerpen Zuidrand en
-// De Huisleverancier (Kontich). Zimmo, Immovlan, Century21 (zoekpagina) en
-// Realo blokkeren server-side requests of leveren enkel JS-gerenderde content
-// — die worden bewust NIET geprobeerd, om geen tijd te verspillen aan calls
-// die toch altijd leeg terugkomen.
+// Haalt live vastgoedaanbod op. Twee scraping-methodes worden gebruikt:
 //
-// Belangrijk: dit is best-effort HTML-scraping van publiek zichtbare pagina's.
-// Sites kunnen hun markup op elk moment wijzigen, waardoor een bron plots
-// 0 resultaten geeft terwijl de site zelf wel degelijk aanbod heeft. Elke
-// bron faalt dus onafhankelijk van de andere (Promise.allSettled) zodat 1
-// kapotte bron nooit de andere 3 blokkeert.
+//  1) Gewone server-side fetch + cheerio (snel, licht) — voor ERA en We Invest
+//     Antwerpen Zuidrand, die hun listings al in de kale HTML zetten.
+//
+//  2) Een ECHTE headless browser (puppeteer-core + @sparticuz/chromium) — voor
+//     Immoweb, waarvan de listings pas via JavaScript in de pagina verschijnen
+//     en dus met een gewone fetch nooit zichtbaar zijn. Dit is trager (een
+//     paar seconden per pagina, want er wordt echt een browser opgestart) en
+//     vraagt zwaardere dependencies, maar is de enige manier om zo'n site
+//     alsnog uit te lezen.
+//
+// De Huisleverancier gaf een harde HTTP 403 terug op een gewone fetch. We
+// proberen die nu OOK via de headless browser — als hun blokkade puur op
+// "geen browser/JS" gebaseerd was, lukt het nu wel; blokkeren ze specifiek op
+// IP-adres (Netlify's servers), dan blijft dit alsnog mislukken. Dat laatste
+// kunnen we vanuit de code niet oplossen.
 
 const cheerio = require('cheerio');
+const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer-core');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -24,9 +30,7 @@ const FETCH_HEADERS = {
   'Accept-Language': 'nl-BE,nl;q=0.9,en;q=0.8',
 };
 
-// ── Regio-slugs per bron. Alleen regio's die de gebruiker effectief kan
-// aanvinken in de app-filter worden hier gemapt; onbekende regio's worden
-// overgeslagen voor die bron (geen crash, gewoon minder resultaten).
+// ── Regio-slugs per bron. ──
 const IMMOWEB_SLUGS = {
   'Borgerhout': 'borgerhout/2140',
   'Mortsel': 'mortsel/2640',
@@ -69,12 +73,6 @@ function parsePrice(txt) {
   return parseInt(m[1].replace(/[.\s]/g, ''), 10);
 }
 
-function parseInt0(txt) {
-  if (!txt) return 0;
-  const m = String(txt).match(/\d+/);
-  return m ? parseInt(m[0], 10) : 0;
-}
-
 function makeId(bron, url) {
   return 'live-' + bron.toLowerCase().replace(/\s+/g, '') + '-' +
     Buffer.from(url).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
@@ -84,15 +82,20 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Loopt van het <a>-element omhoog door tot 5 ouder-niveaus, tot een blok
-// tekst gevonden wordt met een geldige prijs erin. Robuuster dan 1x
-// closest('article,li,div'), want elke site verpakt kaarten anders.
+function diag(html, matchedLinks, keptListings) {
+  return {
+    htmlLength: html ? html.length : 0,
+    rawLinksFound: matchedLinks,
+    listingsKept: keptListings,
+  };
+}
+
 function findPriceBlock($, el) {
   let node = $(el);
-  for (let level = 0; level < 5; level++) {
+  for (let level = 0; level < 8; level++) {
     const txt = node.text().replace(/\s+/g, ' ').trim();
     const prijs = parsePrice(txt);
-    if (prijs && prijs >= 30000 && txt.length < 4000) {
+    if (prijs && prijs >= 30000 && txt.length < 6000) {
       return { block: txt, prijs };
     }
     node = node.parent();
@@ -101,25 +104,129 @@ function findPriceBlock($, el) {
   return null;
 }
 
-function diag(html, matchedLinks, keptListings) {
+// De linktekst zelf is vaak enkel een generieke knoptekst ("Pand bekijken",
+// "Bekijk details", ...) — niet bruikbaar als adres. De URL-slug bevat
+// meestal wél een beschrijvende titel (bv. "instapklaar-appartement-antwerpen"),
+// dus die wordt omgezet naar leesbare tekst en als beste gok gebruikt.
+function titleFromSlug(url) {
+  try {
+    const path = new URL(url).pathname;
+    const parts = path.split('/').filter(Boolean);
+    const slug = parts[parts.length - 1] || '';
+    if (!slug || /^\d+$/.test(slug)) return null; // louter een ID-nummer, geen titel
+    const words = slug.replace(/[-_]+/g, ' ').trim();
+    if (words.length < 4) return null;
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  } catch (e) {
+    return null;
+  }
+}
+
+function extractFromBlock(block) {
+  const kamersMatch = block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
+  const oppMatch = block.match(/(\d+)\s*m²/);
   return {
-    htmlLength: html ? html.length : 0,
-    looksLikeCookieWall: !!(html && /cookie|consent|toestemming/i.test(html.slice(0, 3000))),
-    rawLinksFound: matchedLinks,
-    listingsKept: keptListings,
+    kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
+    opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
+    tuin: /tuin/i.test(block),
   };
 }
 
-// ═══ IMMOWEB ═══
-// UITGESCHAKELD: uit live diagnostiek bleek dat Immoweb's listings enkel via
-// JavaScript in de browser opgebouwd worden — een server-side fetch krijgt
-// een lege pagina-shell (2,8MB aan JS, 0 pand-links in de ruwe HTML) terug.
-// Zonder een echte browser (headless Chrome) is dit niet op te lossen.
-async function scrapeImmoweb(regios) {
-  return { items: [], diagnostics: [{ info: 'Immoweb overgeslagen — vereist JavaScript-rendering, niet haalbaar via server-side fetch.' }] };
+function dedupeByUrl(items) {
+  const seen = new Set();
+  const out = [];
+  for (const it of items) {
+    if (seen.has(it.url)) continue;
+    seen.add(it.url);
+    out.push(it);
+  }
+  return out;
 }
 
-// ═══ ERA ═══
+// ── Gedeelde headless-browserinstantie voor deze functie-aanroep ──
+let browserPromise = null;
+function getBrowser() {
+  if (!browserPromise) {
+    browserPromise = puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  }
+  return browserPromise;
+}
+async function closeBrowserIfOpen() {
+  if (browserPromise) {
+    try { const b = await browserPromise; await b.close(); } catch (e) {}
+  }
+}
+
+async function fetchRenderedHtml(url, linkSelector, timeoutMs) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setUserAgent(UA);
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'nl-BE,nl;q=0.9,en;q=0.8' });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs });
+    await page.waitForSelector(linkSelector, { timeout: Math.min(8000, timeoutMs) }).catch(() => {});
+    const html = await page.content();
+    return html;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// ═══ IMMOWEB — via headless browser (JS-rendering vereist) ═══
+async function scrapeImmoweb(regios) {
+  const out = [];
+  const diagnostics = [];
+  for (const regio of regios) {
+    const slug = IMMOWEB_SLUGS[regio];
+    if (!slug) continue;
+    const url = `https://www.immoweb.be/nl/zoeken/huis-en-appartement/te-koop/${slug}`;
+    try {
+      const html = await fetchRenderedHtml(url, 'a[href*="/nl/pand/"]', 18000);
+      const $ = cheerio.load(html);
+      const matches = $('a[href*="/nl/pand/"]');
+      let kept = 0;
+
+      matches.each((_, el) => {
+        const href = $(el).attr('href');
+        if (!href) return;
+        const fullUrl = href.startsWith('http') ? href : `https://www.immoweb.be${href}`;
+        const found = findPriceBlock($, el);
+        if (!found) return;
+        const extra = extractFromBlock(found.block);
+        const adres = titleFromSlug(fullUrl) || ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
+
+        out.push({
+          id: makeId('Immoweb', fullUrl),
+          adres: adres || regio,
+          regio,
+          prijs: found.prijs,
+          kamers: extra.kamers,
+          tuin: extra.tuin,
+          opp: extra.opp,
+          bron: 'Immoweb',
+          url: fullUrl,
+          datum: todayISO(),
+          score: 0,
+          gezien: false,
+          icon: '🏘️',
+          kleur: '#f5ede0',
+        });
+        kept++;
+      });
+      diagnostics.push(Object.assign({ regio, url }, diag(html, matches.length, kept)));
+    } catch (e) {
+      diagnostics.push({ regio, url, error: String(e && e.message || e) });
+    }
+  }
+  return { items: dedupeByUrl(out).slice(0, 40), diagnostics };
+}
+
+// ═══ ERA — gewone fetch (werkt al) ═══
 async function scrapeEra(regios) {
   const out = [];
   const diagnostics = [];
@@ -137,10 +244,10 @@ async function scrapeEra(regios) {
         const $ = cheerio.load(html);
         const matches = $('a[href*="/te-koop/"]').filter((_, el) => {
           const href = $(el).attr('href') || '';
-          // sluit navigatie-/filterlinks uit (die eindigen exact op de regio/type-pagina zelf)
           return href !== url && !href.endsWith(`/te-koop/${slug}`) && !href.endsWith('/te-koop');
         });
         rawLinks = matches.length;
+        let kept = 0;
 
         matches.each((_, el) => {
           const href = $(el).attr('href');
@@ -148,19 +255,17 @@ async function scrapeEra(regios) {
           const fullUrl = href.startsWith('http') ? href : `https://www.era.be${href}`;
           const found = findPriceBlock($, el);
           if (!found) return;
-
-          const kamersMatch = found.block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-          const oppMatch = found.block.match(/(\d+)\s*m²/);
-          const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
+          const extra = extractFromBlock(found.block);
+          const adres = titleFromSlug(fullUrl) || ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
 
           out.push({
             id: makeId('ERA', fullUrl),
             adres: adres || regio,
             regio,
             prijs: found.prijs,
-            kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-            tuin: /tuin/i.test(found.block),
-            opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
+            kamers: extra.kamers,
+            tuin: extra.tuin,
+            opp: extra.opp,
             bron: 'ERA',
             url: fullUrl,
             datum: todayISO(),
@@ -169,8 +274,9 @@ async function scrapeEra(regios) {
             icon: '🏢',
             kleur: '#ece0d0',
           });
+          kept++;
         });
-        diagnostics.push(Object.assign({ regio, type, url }, diag(html, rawLinks, out.length)));
+        diagnostics.push(Object.assign({ regio, type, url }, diag(html, rawLinks, kept)));
       } catch (e) {
         diagnostics.push({ regio, type, url, error: String(e && e.message || e) });
       }
@@ -179,22 +285,17 @@ async function scrapeEra(regios) {
   return { items: dedupeByUrl(out).slice(0, 40), diagnostics };
 }
 
-// ═══ WE INVEST ANTWERPEN ZUIDRAND ═══
-// Dit kantoor dekt exact de Zuidrand-gemeenten, dus we halen gewoon hun hele
-// "te koop"-aanbod op zonder per-regio te filteren op URL-niveau — het
-// filteren op regio gebeurt client-side in de app zelf.
+// ═══ WE INVEST ANTWERPEN ZUIDRAND — gewone fetch (werkt al) ═══
 async function scrapeWeInvest() {
   const out = [];
   const url = 'https://weinvest.be/nl-BE/agencies/antwerpen-zuidrand/50';
-  let html = '';
-  let rawLinks = 0;
   try {
     const res = await timeoutFetch(url, 9000);
     if (!res.ok) return { items: out, diagnostics: [{ url, httpStatus: res.status }] };
-    html = await res.text();
+    const html = await res.text();
     const $ = cheerio.load(html);
     const matches = $('a[href*="/nl-BE/property/"]');
-    rawLinks = matches.length;
+    let kept = 0;
 
     matches.each((_, el) => {
       const href = $(el).attr('href');
@@ -202,19 +303,17 @@ async function scrapeWeInvest() {
       const fullUrl = href.startsWith('http') ? href : `https://weinvest.be${href}`;
       const found = findPriceBlock($, el);
       if (!found) return;
-
-      const kamersMatch = found.block.match(/(\d+)\s*(?:slaapkamer|kamer)/i);
-      const oppMatch = found.block.match(/(\d+)\s*m²/);
-      const adres = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
+      const extra = extractFromBlock(found.block);
+      const adres = titleFromSlug(fullUrl) || ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
 
       out.push({
         id: makeId('We Invest', fullUrl),
         adres: adres || 'Antwerpen Zuidrand',
         regio: 'Zuidrand (We Invest)',
         prijs: found.prijs,
-        kamers: kamersMatch ? parseInt(kamersMatch[1], 10) : 0,
-        tuin: /tuin/i.test(found.block),
-        opp: oppMatch ? parseInt(oppMatch[1], 10) : 0,
+        kamers: extra.kamers,
+        tuin: extra.tuin,
+        opp: extra.opp,
         bron: 'We Invest',
         url: fullUrl,
         datum: todayISO(),
@@ -223,29 +322,59 @@ async function scrapeWeInvest() {
         icon: '🏡',
         kleur: '#f5ede0',
       });
+      kept++;
     });
-    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, rawLinks, out.length))] };
+    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, matches.length, kept))] };
   } catch (e) {
     return { items: out, diagnostics: [{ url, error: String(e && e.message || e) }] };
   }
 }
 
-// ═══ DE HUISLEVERANCIER (Kontich, max-immo CMS) ═══
-// UITGESCHAKELD: geeft een harde HTTP 403 terug op een server-side fetch —
-// deze site blokkeert dit actief (waarschijnlijk op user-agent/referrer).
+// ═══ DE HUISLEVERANCIER — nogmaals proberen via headless browser ═══
+// (gaf eerder HTTP 403 op een gewone fetch; onzeker of dit nu wél lukt)
 async function scrapeHuisleverancier() {
-  return { items: [], diagnostics: [{ info: 'De Huisleverancier overgeslagen — blokkeert server-side aanvragen (HTTP 403).' }] };
-}
-
-function dedupeByUrl(items) {
-  const seen = new Set();
   const out = [];
-  for (const it of items) {
-    if (seen.has(it.url)) continue;
-    seen.add(it.url);
-    out.push(it);
+  const url = 'https://www.dehuisleverancier.be/te-koop/map?_locale=nl';
+  try {
+    const html = await fetchRenderedHtml(url, 'a[href*="/te-koop/"]', 15000);
+    const $ = cheerio.load(html);
+    const matches = $('a[href*="/te-koop/"]').filter((_, el) => {
+      const href = $(el).attr('href') || '';
+      return !href.endsWith('/te-koop/map');
+    });
+    let kept = 0;
+
+    matches.each((_, el) => {
+      const href = $(el).attr('href');
+      if (!href) return;
+      const fullUrl = href.startsWith('http') ? href : `https://www.dehuisleverancier.be${href}`;
+      const found = findPriceBlock($, el);
+      if (!found) return;
+      const extra = extractFromBlock(found.block);
+      const adres = titleFromSlug(fullUrl) || ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
+
+      out.push({
+        id: makeId('De Huisleverancier', fullUrl),
+        adres: adres || 'Zuidrand',
+        regio: 'Kontich e.o. (De Huisleverancier)',
+        prijs: found.prijs,
+        kamers: extra.kamers,
+        tuin: extra.tuin,
+        opp: extra.opp,
+        bron: 'De Huisleverancier',
+        url: fullUrl,
+        datum: todayISO(),
+        score: 0,
+        gezien: false,
+        icon: '🏠',
+        kleur: '#ece0d0',
+      });
+      kept++;
+    });
+    return { items: dedupeByUrl(out).slice(0, 40), diagnostics: [Object.assign({ url }, diag(html, matches.length, kept))] };
+  } catch (e) {
+    return { items: out, diagnostics: [{ url, error: String(e && e.message || e), note: 'Mogelijk IP-blokkade — headless browser lost dat niet op.' }] };
   }
-  return out;
 }
 
 exports.handler = async (event) => {
@@ -265,6 +394,8 @@ exports.handler = async (event) => {
       scrapeWeInvest(),
       scrapeHuisleverancier(),
     ]);
+
+    await closeBrowserIfOpen();
 
     const bronnen = ['Immoweb', 'ERA', 'We Invest', 'De Huisleverancier'];
     const listings = [];
@@ -295,6 +426,7 @@ exports.handler = async (event) => {
       }),
     };
   } catch (err) {
+    await closeBrowserIfOpen();
     return {
       statusCode: 500,
       headers,
