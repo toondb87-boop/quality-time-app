@@ -2,10 +2,8 @@
   "name": "quality-time-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Quality Time app — Netlify functions (real-estate scraper met headless browser voor Immoweb, recipe-image met Unsplash-fallback, ics-proxy)",
+  "description": "Quality Time app — Netlify functions (real-estate scraper: ERA + We Invest, recipe-image met Unsplash-fallback, ics-proxy)",
   "dependencies": {
-    "cheerio": "^1.0.0",
-    "puppeteer-core": "^24.8.2",
-    "@sparticuz/chromium-min": "^133.0.0"
+    "cheerio": "^1.0.0"
   }
 }
