@@ -4,6 +4,16 @@
 
 [functions]
   node_bundler = "esbuild"
+  # De headless-browser (chromium) mag niet mee ge-bundled/verkleind worden
+  external_node_modules = ["@sparticuz/chromium", "puppeteer-core"]
+
+[functions."scrape-realestate"]
+  # Immoweb via een echte browser laden duurt langer dan een gewone fetch.
+  # Let op: gratis Netlify-plannen hanteren doorgaans een harde limiet van
+  # ~10 seconden per functie-aanroep, ongeacht deze instelling. Als de
+  # aanroep steevast timeout, is een hoger Netlify-plan (of minder regio's
+  # tegelijk opvragen) de enige oplossing.
+  timeout = 26
 
 [[headers]]
   for = "/.netlify/functions/*"
