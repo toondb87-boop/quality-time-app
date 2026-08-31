@@ -598,6 +598,7 @@ input, select, textarea{
 #ohHero, .axxes-header, .oh-hero-curve{ display:none !important; }
 #ohHero{
   display:block !important;
+  position:relative !important;
   margin:10px 22px 0 !important;
   border:1.5px solid var(--brut-ink) !important;
   border-radius:8px !important;
@@ -644,7 +645,11 @@ input, select, textarea{
   display:flex;align-items:center;justify-content:center;
   font-weight:700;
 }
-#ohHero .oh-nav{ margin-top:52px !important; }
+#ohHero .oh-nav{
+  position:absolute !important;
+  left:14px !important; right:14px !important; bottom:8px !important;
+  margin-top:0 !important;
+}
 #ohHero .oh-nav-date{ min-height:10px !important; }
 .axxes-header{
   display:block !important;
@@ -2246,6 +2251,12 @@ input, select, textarea{
 
 /* Accentstreep per topic */
 #todayWeatherCard{border-left-color:#c9982e;}
+#todayWeatherCard{
+  display:block !important; padding:0 !important; gap:0 !important; align-items:stretch !important;
+  background:transparent !important; border-radius:0 !important; box-shadow:none !important;
+  border:none !important; border-left:none !important; cursor:default !important;
+}
+#todayWeatherCard:active{ transform:none !important; box-shadow:none !important; }
 #ohCardTrain{border-left-color:#c05818;}
 #ohCardAgenda{border-left-color:#7d8a5a;}
 #ohCardWaste{border-left-color:#4d8a72;}
@@ -2658,7 +2669,19 @@ input, select, textarea{
 
 /* ══ DAY PANEL v2 ══ */
 .dp2-wrap{background:var(--cream);}
-.dp2-header{background:linear-gradient(135deg,#1f0f05,#3d1a0a,#9a5020);padding:12px 16px 12px;border-radius:0;position:relative;overflow:hidden;}
+.dp2-header{
+  background:#fff7cf;
+  border:1.5px solid var(--brut-ink,#0a0a0a);
+  border-radius:14px;
+  box-shadow:3px 3px 0 var(--brut-ink,#0a0a0a);
+  padding:14px 16px;
+  margin:10px 14px 4px;
+  transform:rotate(-0.6deg);
+  position:relative;
+}
+.dp2-header-kicker{ font-family:var(--cond,'Outfit',sans-serif); font-size:9px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:#8a6a20; margin-bottom:5px; }
+.dp2-header-title{ font-family:var(--cond,'Outfit',sans-serif); font-size:19px; font-weight:900; text-transform:uppercase; color:var(--brut-ink,#0a0a0a); letter-spacing:-.2px; line-height:1.1; }
+.dp2-header-close{ transform:rotate(0.6deg); }
 
 /* ══ GOLF PATROON — omslaande golf met schuim ══ */
 
@@ -2728,9 +2751,9 @@ input, select, textarea{
 .wc-card {
   display:flex;align-items:stretch;
   border-radius:14px;overflow:hidden;
-  border:1.5px solid #ece0d0;
+  border:1.5px solid var(--brut-ink,#0a0a0a);
   background:#fff;font-family:var(--grotesk);
-  box-shadow:0 2px 10px rgba(61,26,10,.08);
+  box-shadow:3px 3px 0 var(--brut-ink,#0a0a0a);
 }
 .wc-evening { background:linear-gradient(135deg,#3d1a0a,#4a2c14) !important;border-color:rgba(100,160,220,.2) !important; }
 .wc-evening .wc-date-day,
@@ -2741,22 +2764,23 @@ input, select, textarea{
 .wc-evening .wc-period-temp { color:rgba(200,230,255,.9) !important; }
 .wc-evening .wc-period-rain { color:rgba(180,210,255,.4) !important; }
 .wc-date-col {
-  display:flex;align-items:center;gap:7px;
-  padding:12px 8px;min-width:0;flex-shrink:0;
-  background:#e9f1e4;border-right:1.5px solid #ece0d0;
+  display:flex;align-items:center;gap:8px;
+  padding:14px 12px;min-width:0;flex-shrink:0;
+  background:#e9f1e4;border-right:1.5px solid var(--brut-ink,#0a0a0a);
 }
 .wc-date-icon { font-size:24px;flex-shrink:0; }
-.wc-date-day { font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#a08060; }
-.wc-date-num { font-size:12px;font-weight:700;color:#3d1a0a;line-height:1.2;margin:2px 0; }
-.wc-date-sub { font-size:8px;color:#d8c8b0;letter-spacing:.5px; }
+.wc-date-day { font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--surf-teal,#1F7A6C);white-space:nowrap; }
+.wc-date-num { font-size:11px;font-weight:700;color:#3d1a0a;line-height:1.3;margin:2px 0;white-space:nowrap; }
+.wc-date-sub { font-size:9px;color:#8a6a4a;letter-spacing:.3px;font-weight:600;white-space:nowrap; }
+.wc-date-loc{font-family:var(--grotesk);font-size:8px;font-weight:600;color:var(--surf-teal,#1F7A6C);cursor:pointer;margin-top:4px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
 .wc-period {
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  flex:1;padding:10px 2px;border-left:1.5px solid #f5ede0;min-width:0;box-sizing:border-box;
+  flex:1;padding:14px 4px;border-left:1.5px solid #f5ede0;min-width:0;box-sizing:border-box;gap:5px;
 }
-.wc-period-label { font-size:6px;font-weight:700;letter-spacing:-.1px;color:#c0a888;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
-.wc-period-icon { font-size:22px;line-height:1;margin-bottom:4px; }
-.wc-period-temp { font-size:15px;font-weight:700;color:#3d1a0a;margin-bottom:2px;white-space:nowrap; }
-.wc-period-rain { font-size:7px;color:#d8c8b0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+.wc-period-label { font-size:8.5px;font-weight:700;letter-spacing:.3px;color:#a08060;white-space:nowrap;max-width:100%;text-transform:uppercase; }
+.wc-period-icon { font-size:26px;line-height:1; }
+.wc-period-temp { font-family:'Anton',var(--cond);font-size:18px;font-weight:400;color:#3d1a0a;white-space:nowrap; }
+.wc-period-rain { font-size:8.5px;color:#8a6a4a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
 .wc-unavail,.wc-loading { font-family:var(--grotesk);font-size:11px;color:#d8c8b0;padding:12px; }
 
 /* ═══════════════════════════════════════════════
@@ -3166,24 +3190,24 @@ input, select, textarea{
 .wd-temps-wrap{text-align:left;}
 .wd-temps{font-family:'Anton',var(--cond);font-size:30px;font-weight:400;letter-spacing:.5px;color:var(--brut-ink,#0a0a0a);line-height:1;}
 .wd-temps-label{font-family:var(--cond);font-size:8px;font-weight:700;letter-spacing:2px;color:var(--stone2,#8a7a68);text-transform:uppercase;margin-top:4px;}
-.wd-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#e9f1e4;border-bottom:2px solid #ece0d0;gap:4px;}
-.wd-nav-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:10px;transition:background .15s;flex:1;max-width:130px;}
+.wd-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#e9f1e4;border-bottom:2px solid #ece0d0;gap:8px;margin-top:2px;}
+.wd-nav-btn{background:none !important;border:none !important;box-shadow:none !important;cursor:pointer;padding:6px 8px;border-radius:10px !important;transition:background .15s;flex:1;max-width:130px;}
 .wd-nav-btn:hover{background:rgba(45,106,143,.07);}
 .wd-nav-btn:disabled{opacity:.25;cursor:default;}
-.wd-nav-btn-left .wd-nav-inner{display:flex;align-items:center;gap:6px;justify-content:flex-start;}
-.wd-nav-btn-right .wd-nav-inner{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
-.wd-nav-arrow{font-size:22px;color:#3d1a0a;font-weight:300;line-height:1;flex-shrink:0;}
-.wd-nav-side{display:flex;flex-direction:column;gap:0px;}
-.wd-nav-side-label{font-family:var(--grotesk);font-size:7px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#d8c8b0;}
-.wd-nav-side-date{font-family:var(--grotesk);font-size:10px;font-weight:700;color:#3d1a0a;}
-.wd-nav-center{font-family:var(--grotesk);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3d1a0a;display:flex;align-items:center;gap:4px;text-align:center;flex-shrink:0;}
+.wd-nav-btn-left .wd-nav-inner{display:flex;align-items:center;gap:8px;justify-content:flex-start;}
+.wd-nav-btn-right .wd-nav-inner{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+.wd-nav-arrow{font-size:24px;color:#3d1a0a;font-weight:300;line-height:1;flex-shrink:0;}
+.wd-nav-side{display:flex;flex-direction:column;gap:2px;}
+.wd-nav-side-label{font-family:var(--grotesk);font-size:7.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b0a088;}
+.wd-nav-side-date{font-family:var(--grotesk);font-size:11px;font-weight:700;color:#3d1a0a;}
+.wd-nav-center{font-family:var(--grotesk);font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3d1a0a;display:flex;align-items:center;gap:5px;text-align:center;flex-shrink:0;}
 
 /* ── WEER SUBTABS (Per uur / Regen 24u) ── */
 .wd-subtabs{display:flex;background:#e9f1e4;border-bottom:2px solid #ece0d0;}
-.wd-subtab{flex:1;padding:10px 4px;font-family:var(--grotesk);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#d8c8b0;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;}
-.wd-subtab.active{color:#3d1a0a;border-bottom-color:#3d1a0a;}
-.wd-list{background:#e9f1e4;padding:4px 0 20px;}
-.wd-row{display:grid;grid-template-columns:58px 36px 50px 1fr;align-items:center;padding:9px 16px;border-bottom:1.5px solid #f5ede0;background:#fff;margin:0 10px 4px;border-radius:11px;}
+.wd-subtab{flex:1;padding:13px 4px;font-family:var(--grotesk);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b0a088;background:none !important;border-top:none !important;border-left:none !important;border-right:none !important;box-shadow:none !important;border-radius:0 !important;border-bottom:2.5px solid transparent !important;cursor:pointer;}
+.wd-subtab.active{color:#3d1a0a;border-bottom-color:var(--surf-teal,#1F7A6C) !important;}
+.wd-list{background:#e9f1e4;padding:10px 0 20px;}
+.wd-row{display:grid;grid-template-columns:58px 36px 50px 1fr;align-items:center;padding:11px 16px;border-bottom:1.5px solid #f5ede0;background:#fff;margin:0 12px 6px;border-radius:11px;}
 .wd-row:last-child{margin-bottom:0;}
 .wd-row.nu{background:#e8f2fc;border-left:3px solid #3d1a0a;padding-left:13px;box-shadow:0 2px 8px rgba(61,26,10,.1);}
 .wd-time{font-family:var(--grotesk);font-size:11px;font-weight:700;color:#a08060;letter-spacing:.5px;}
@@ -4291,6 +4315,7 @@ input, select, textarea{
           <div class="settings-row">
             <button class="settings-btn" id="oneSignalSubBtn" onclick="oneSignalSubscribe()">Activeer op dit toestel</button>
           </div>
+          <div id="oneSignalDiag" style="font-family:monospace;font-size:9.5px;color:#4a4038;background:#f5ede0;border-radius:8px;padding:8px 10px;margin:6px 0;line-height:1.6;word-break:break-word"></div>
           <div class="settings-row">
             <div class="settings-label-sub">Wanneer geactiveerd, kan je in het OneSignal-dashboard (zonder extra code) terugkerende meldingen inplannen — bv. elke avond om 19:00 "Vuilnis staat morgen buiten?" onder Messages ▸ New Push ▸ Recurring.</div>
           </div>
@@ -7255,22 +7280,24 @@ function getDinnerCategory(name) {
 }
 
 // Set image src: try cache first, then fetch from Foodish
-// ─── LIVE FOTO OPHALEN VAN DE ECHTE BRON (og:image via Netlify-functie) ──────
-// Haalt de foto op die de bron zelf bij het recept gebruikt (bv. dagelijksekost.vrt.be,
-// ottolenghi.co.uk, ...) i.p.v. een generieke voorbeeldfoto. Werkt enkel na deployment
-// op Netlify — lokaal getest of zonder link valt dit automatisch terug op Foodish.
+// ─── LIVE FOTO OPHALEN — bron (og:image) én, als dat niets oplevert, een
+// relevante zoekfoto via Unsplash (op basis van de receptnaam). Werkt enkel
+// na deployment op Netlify — lokaal getest of zonder resultaat valt dit
+// automatisch terug op de generieke Foodish-foto.
 function fetchDagelijksekostPhoto(url, name, callback) {
-  if(!url) { callback(null); return; }
   try {
-    fetch('/.netlify/functions/recipe-image?url=' + encodeURIComponent(url))
+    var qs = 'query=' + encodeURIComponent(name || '');
+    if(url) qs += '&url=' + encodeURIComponent(url);
+    fetch('/.netlify/functions/recipe-image?' + qs)
       .then(function(r){ return r.json(); })
       .then(function(data){ callback((data && data.image) || null); })
       .catch(function(){ callback(null); });
   } catch(e){ callback(null); }
 }
 
-// Foto instellen in de hero banner: eerst de échte bronfoto proberen (via het
-// recept-linkje), en enkel bij falen terugvallen op een generieke Foodish-foto
+// Foto instellen in de hero banner: eerst de échte bronfoto proberen, dan een
+// relevante zoekfoto (op basis van de receptnaam), en pas als allerlaatste
+// redmiddel de generieke Foodish-foto
 function setDinnerPhotoHero(imgEl, name, patternEl, link) {
   try {
     if(!imgEl) return;
@@ -7298,23 +7325,20 @@ function setDinnerPhotoHero(imgEl, name, patternEl, link) {
         .catch(function(){});
     }
 
-    // Enkel proberen als het linkje meer is dan louter een homepage
-    // (anders krijg je een site-logo i.p.v. een receptfoto)
+    // Enkel de bron-link meesturen als die meer is dan louter een homepage
+    // (anders krijg je een site-logo i.p.v. een receptfoto); de receptnaam
+    // wordt sowieso altijd meegestuurd als zoekterm-fallback.
     var linkLooksSpecific = link && /^https?:\/\/[^\/]+\/.+/.test(link);
-    if(linkLooksSpecific) {
-      fetchDagelijksekostPhoto(link, name, function(sourceImage){
-        if(sourceImage) {
-          try { localStorage.setItem(cacheKey, sourceImage); } catch(e){}
-          imgEl.src = sourceImage;
-          imgEl.style.display = 'block';
-          if(patternEl) patternEl.style.display = 'none';
-        } else {
-          useFallback();
-        }
-      });
-    } else {
-      useFallback();
-    }
+    fetchDagelijksekostPhoto(linkLooksSpecific ? link : null, name, function(foundImage){
+      if(foundImage) {
+        try { localStorage.setItem(cacheKey, foundImage); } catch(e){}
+        imgEl.src = foundImage;
+        imgEl.style.display = 'block';
+        if(patternEl) patternEl.style.display = 'none';
+      } else {
+        useFallback();
+      }
+    });
   } catch(e){}
 }
 
@@ -10438,17 +10462,22 @@ function renderWeatherCard(dateStr, containerId) {
   fetchWeather(dateStr, function(w) {
     if(!w) { el.innerHTML = '<div class="wc-unavail">🌤️ Niet beschikbaar</div>'; return; }
     var isEve = el.getAttribute('data-evening') === '1';
+    var isMain = containerId === 'todayWeatherCard';
     var periods = [
       {label:'VM', full:'Ochtend', icon:w.morningIcon||'⛅',   temp:w.morningTemp||w.max,    rain:w.morningRain||0},
       {label:'NM', full:'Middag',   icon:w.afternoonIcon||'☀️', temp:w.afternoonTemp||w.max,  rain:w.afternoonRain||0},
-      {label:'AV', full:'Avond',      icon:w.eveningIcon||'🌙',   temp:w.eveningTemp||w.min,    rain:w.eveningRain||0},
+      {label:'NA', full:'Nacht',    icon:w.eveningIcon||'🌙',   temp:w.eveningTemp||w.min,    rain:w.eveningRain||0},
     ];
+    var locLine = isMain
+      ? '<div class="wc-date-loc" onclick="event.stopPropagation();openWeerLocatieModal()" title="Tik om locatie te wijzigen">📍 '+weerLocatieHuidigeNaam+'</div>'
+      : '';
     var html = '<div class="wc-card' + (isEve?' wc-evening':'') + '" onclick="openWeerDetail(\'' + dateStr + '\')" style="cursor:pointer" title="Tik voor uurlijks weerbericht">'
       + '<div class="wc-date-col">'
       + '<div class="wc-date-icon">' + (w.afternoonIcon||w.morningIcon||'🌤️') + '</div>'
       + '<div><div class="wc-date-day">' + new Date(dateStr+'T12:00:00').toLocaleDateString("nl-NL",{weekday:"short"}).toUpperCase() + '</div>'
       + '<div class="wc-date-num">' + new Date(dateStr+'T12:00:00').toLocaleDateString("nl-NL",{day:"numeric",month:"short"}).toUpperCase() + '</div>'
-      + '<div class="wc-date-sub">' + (w.max||'—') + '° / ' + (w.min||'—') + '°</div>'
+      + '<div class="wc-date-sub">' + Math.round(parseFloat(w.max)||0) + '° / ' + Math.round(parseFloat(w.min)||0) + '°</div>'
+      + locLine
       + '</div></div>';
     periods.forEach(function(p) {
       html += '<div class="wc-period">'
@@ -10459,11 +10488,7 @@ function renderWeatherCard(dateStr, containerId) {
         + '</div>';
     });
     html += '</div>';
-    var isMain = containerId === 'todayWeatherCard';
-    var locBadge = isMain
-      ? '<div onclick="event.stopPropagation();openWeerLocatieModal()" style="display:inline-flex;align-items:center;gap:4px;font-family:var(--grotesk);font-size:9px;font-weight:600;color:var(--stone2);cursor:pointer;margin-bottom:6px;text-decoration:underline;text-underline-offset:2px" title="Tik om locatie te wijzigen">📍 '+weerLocatieHuidigeNaam+'</div>'
-      : '';
-    el.innerHTML = locBadge + html;
+    el.innerHTML = html;
   });
 }
 
@@ -13215,14 +13240,14 @@ function renderDayPanel(date) {
     && calFilters.every(function(f){ return f==='janne'||f==='cyriel'||f==='kids'; });
 
   var html = '';
-  // Header
+  // Header — candy-kaart met lichte rotatie (optie 3)
   html += '<div class="dp2-header">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between">';
   html += '<div>';
-  html += '<div style="font-family:var(--grotesk);font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(180,210,255,.5)">' + date.toLocaleDateString('nl-NL',{weekday:'long'}).toUpperCase() + ' · WK ' + wk + '</div>';
-  html += '<div style="font-family:var(--grotesk);font-size:18px;font-weight:700;color:#fff;line-height:1.1">' + date.toLocaleDateString('nl-NL',{day:'numeric',month:'long'}) + (isToday?' <span style="font-size:9px;background:rgba(96,200,255,.25);color:#a0d8ff;padding:2px 8px;border-radius:10px;vertical-align:middle">VANDAAG</span>':'') + '</div>';
+  html += '<div class="dp2-header-kicker">' + date.toLocaleDateString('nl-NL',{weekday:'long'}).toUpperCase() + ' · WEEK ' + wk + '</div>';
+  html += '<div class="dp2-header-title">' + date.toLocaleDateString('nl-NL',{day:'numeric',month:'long'}) + (isToday?' <span style="font-size:9px;background:var(--brut-ink,#0a0a0a);color:#fff;padding:2px 8px;border-radius:10px;vertical-align:middle;letter-spacing:1px">VANDAAG</span>':'') + '</div>';
   html += '</div>';
-  html += '<button onclick="document.getElementById(\'dayPanel\').innerHTML=\'\';" style="background:#fff;border:1.5px solid var(--brut-ink,#0a0a0a);color:var(--brut-ink,#0a0a0a);font-size:16px;font-weight:700;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Sluiten">✕</button>';
+  html += '<button class="dp2-header-close" onclick="document.getElementById(\'dayPanel\').innerHTML=\'\';" style="background:#fff;border:1.5px solid var(--brut-ink,#0a0a0a);color:var(--brut-ink,#0a0a0a);font-size:13px;font-weight:700;cursor:pointer;width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 0 var(--brut-ink,#0a0a0a)" title="Sluiten">✕</button>';
   html += '</div></div>';
 
   html += '<div style="padding:10px;display:flex;flex-direction:column;gap:10px">';
@@ -13247,8 +13272,7 @@ function renderDayPanel(date) {
     html += '<button onclick="openAfwijkingModal(\''+key+'\')" style="width:100%;margin-top:8px;padding:11px;background:'+(kalAfwijkingen[key]?'#fff3cd':'#e9f1e4')+';border:1.5px '+(kalAfwijkingen[key]?'solid #ffc107':'dashed #d8c8b0')+';border-radius:13px;font-family:var(--grotesk);font-size:10px;font-weight:700;color:'+(kalAfwijkingen[key]?'#856404':'#d8c8b0')+';cursor:pointer">'+(kalAfwijkingen[key]?'✏ Afwijking bewerken':'⚠ Afwijking melden')+'</button>';
   } else {
     // ── VOLLEDIGE TOON-WEERGAVE — compacte tegels, tik voor detail (zelfde taal als Varia) ──
-    // 1. Weer blijft altijd zichtbaar
-    html += '<div id="dp2weather_' + key + '" style="background:#fff;border-radius:14px;padding:10px 14px;border:1.5px solid #ece0d0;box-shadow:0 2px 6px rgba(61,26,10,.06)"></div>';
+    // 1. Weer wordt enkel getoond als er effectief data is (async check, zie dp2LoadWeatherTile)
     if(wisselKnop) html += wisselKnop;
 
     var agendaCount = allEvs.length;
@@ -13258,6 +13282,7 @@ function renderDayPanel(date) {
     var noteSub = noteCount>0 ? (noteCount+' notitie'+(noteCount>1?'s':'')) : 'Geen notities';
 
     html += '<div class="dp2-tile-grid" id="dp2TileGrid">'
+      + '<div class="dp2-tile" id="dp2WeerTile_'+key+'" style="display:none" onclick="dp2ShowDetail(\'weer\')"><div class="dp2-tile-ic">🌤️</div><div class="dp2-tile-lbl">Weer</div><div class="dp2-tile-sub" id="dp2WeerSub_'+key+'">—</div></div>'
       + dp2Tile('maaltijd','🍽️','Maaltijd', dinnerName)
       + (agendaCount>0 ? dp2Tile('agenda','📅','Agenda', agendaSub) : '')
       + dp2Tile('training','💪','Training', trainSub)
@@ -13265,6 +13290,7 @@ function renderDayPanel(date) {
       + (noteCount>0 ? dp2Tile('notities','📝','Notities', noteSub) : '')
       + '</div>';
 
+    html += dp2DetailPanel('weer', '🌤️ Weerbericht', '<div id="dp2weather_'+key+'"></div>');
     html += dp2DetailPanel('maaltijd', '🍽️ ' + dinnerName, mealInner);
     if(agendaCount>0) html += dp2DetailPanel('agenda', '📅 Agenda', agendaInner);
     html += dp2DetailPanel('training', '💪 Training', trainInner);
@@ -13278,7 +13304,7 @@ function renderDayPanel(date) {
   // Post-render
   var imgEl = document.getElementById('dp2img_'+key);
   if(imgEl) setDinnerPhoto(imgEl, dinnerName, dinner && dinner.link);
-  renderWeatherCard(key, 'dp2weather_'+key);
+  dp2LoadWeatherTile(key);
   // Scroll la page container naar dayPanel (tabs blijven zichtbaar)
   setTimeout(function(){
     var pageEl = document.getElementById('page-calendar');
@@ -13287,6 +13313,22 @@ function renderDayPanel(date) {
       pageEl.scrollTo({top: panelTop - 10, behavior: 'smooth'});
     }
   }, 80);
+}
+
+// Weer-tegel wordt pas zichtbaar zodra er effectief weerdata voor deze dag beschikbaar is
+function dp2LoadWeatherTile(key) {
+  var tileEl = document.getElementById('dp2WeerTile_'+key);
+  var subEl  = document.getElementById('dp2WeerSub_'+key);
+  if(!tileEl) return;
+  var todayStr   = dk(new Date());
+  var daysAhead  = Math.round((new Date(key+'T12:00:00') - new Date(todayStr+'T12:00:00')) / 86400000);
+  if(daysAhead > 14) return; // te ver vooruit — geen tegel tonen
+  fetchWeather(key, function(w) {
+    if(!w) return; // geen data — tegel blijft verborgen
+    tileEl.style.display = '';
+    if(subEl) subEl.textContent = (w.max||'—') + '° / ' + (w.min||'—') + '°';
+    renderWeatherCard(key, 'dp2weather_'+key);
+  });
 }
 
 function toggleLikeDay(name, key) {
@@ -16163,15 +16205,50 @@ function oneSignalSyncTags() {
 }
 
 function oneSignalSubscribe() {
+  var statusEl = document.getElementById('oneSignalStatus');
+  var diagEl = document.getElementById('oneSignalDiag');
   if(ONESIGNAL_APP_ID === ONESIGNAL_PLACEHOLDER) {
     alert('Er is nog geen OneSignal App ID ingesteld in de app. Maak eerst een gratis account op onesignal.com en vul je App ID in (zie uitleg in dit scherm).');
     return;
   }
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.Notifications.requestPermission();
-    updateOneSignalStatusUI();
-    oneSignalSyncTags();
-  });
+
+  var log = [];
+  function report(line){
+    log.push(line);
+    if(diagEl) diagEl.innerHTML = log.map(function(l){return '<div>'+l+'</div>';}).join('');
+  }
+
+  report('▸ Tik geregistreerd om ' + new Date().toLocaleTimeString('nl-BE'));
+  report('▸ isSecureContext: ' + window.isSecureContext);
+  report('▸ Standalone (thuisscherm-app): ' + (window.navigator.standalone === true ? 'ja' : (window.navigator.standalone === false ? 'nee — je opent dit via Safari zelf, niet via het icoontje!' : 'onbekend (geen iOS Safari)')));
+  report('▸ Notification API beschikbaar: ' + ('Notification' in window));
+  if('Notification' in window) report('▸ Huidige browsertoestemming: ' + Notification.permission);
+  report('▸ OneSignal SDK-wachtrij aangesproken…');
+
+  var timedOut = false;
+  var to = setTimeout(function(){
+    timedOut = true;
+    report('⚠️ Na 6 seconden nog geen reactie van de OneSignal-SDK — die is waarschijnlijk niet (volledig) geladen. Check je internetverbinding, of dat er geen inhoudsblokkering/advertentieblokker actief is in Safari.');
+  }, 6000);
+
+  try {
+    OneSignalDeferred.push(async function(OneSignal) {
+      clearTimeout(to);
+      if(timedOut) report('▸ (OneSignal-SDK reageerde alsnog, na de timeout)');
+      report('▸ OneSignal-SDK geladen — toestemming aanvragen bij iOS…');
+      try {
+        var result = await OneSignal.Notifications.requestPermission();
+        report('▸ Resultaat van de toestemmingsaanvraag: ' + JSON.stringify(result));
+        report('▸ Browsertoestemming nadien: ' + (('Notification' in window) ? Notification.permission : 'onbekend'));
+      } catch(err) {
+        report('❌ Fout tijdens requestPermission: ' + (err && err.message ? err.message : err));
+      }
+      updateOneSignalStatusUI();
+      oneSignalSyncTags();
+    });
+  } catch(err) {
+    report('❌ Kon OneSignalDeferred niet aanspreken: ' + (err && err.message ? err.message : err));
+  }
 }
 function updateOneSignalStatusUI() {
   var statusEl = document.getElementById('oneSignalStatus');
