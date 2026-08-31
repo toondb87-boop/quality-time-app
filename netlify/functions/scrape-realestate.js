@@ -153,6 +153,18 @@ function extractFromBlock(block) {
   };
 }
 
+// Immoscoop's kaarttekst is één aaneengeplakte string zonder spaties tussen
+// straat/postcode/gemeente (bv. "Te Boelaarlei 682140 Borgerhout"). Straat-
+// nummer en postcode vloeien dus letterlijk in elkaar over. We zoeken het
+// kortste getal vóór een geldige 4-cijferige postcode + gemeentenaam.
+function extractImmoscoopAddress(block) {
+  const m = block.match(/([A-ZÀ-Ý][A-Za-zÀ-ÿ.'\s-]*?\d+?[a-zA-Z]?)(\d{4})([A-ZÀ-Ý][a-zà-ÿ]+)/);
+  if (!m) return null;
+  const straat = m[1].trim();
+  if (straat.length < 4) return null;
+  return `${straat}, ${m[2]} ${m[3]}`;
+}
+
 function dedupeByUrl(items) {
   const seen = new Set();
   const out = [];
@@ -262,7 +274,7 @@ async function scrapeImmoscoop(regios) {
         const found = findPriceBlock($, el);
         if (!found) return;
         const extra = extractFromBlock(found.block);
-        const adres = titleFromSlug(fullUrl) || ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 80) || found.block.slice(0, 60);
+        const adres = extractImmoscoopAddress(found.block) || titleFromSlug(fullUrl) || regio;
 
         out.push({
           id: makeId('Immoscoop', fullUrl),
