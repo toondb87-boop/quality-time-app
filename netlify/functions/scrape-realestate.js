@@ -19,8 +19,13 @@
 // kunnen we vanuit de code niet oplossen.
 
 const cheerio = require('cheerio');
-const chromium = require('@sparticuz/chromium');
+const chromium = require('@sparticuz/chromium-min');
 const puppeteer = require('puppeteer-core');
+
+// De -min variant bundelt Chromium NIET mee (dat gaf de "Cannot find module"-crash
+// op Netlify) — in plaats daarvan wordt de browser bij de eerste aanroep gedownload
+// vanaf deze URL, en daarna hergebruikt zolang de functie "warm" blijft.
+const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -147,12 +152,15 @@ function dedupeByUrl(items) {
 let browserPromise = null;
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: chromium.executablePath(),
-      headless: chromium.headless,
-    });
+    browserPromise = (async () => {
+      const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+      return puppeteer.launch({
+        args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }),
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: 'shell',
+      });
+    })();
   }
   return browserPromise;
 }
