@@ -4,15 +4,18 @@
 
 [functions]
   node_bundler = "esbuild"
-  # De headless-browser (chromium) mag niet mee ge-bundled/verkleind worden
-  external_node_modules = ["@sparticuz/chromium", "puppeteer-core"]
+  # Beide packages worden apart geïnstalleerd i.p.v. door esbuild gebundeld —
+  # chromium-min is een klein "loader"-pakketje (downloadt de browser zelf pas
+  # bij de eerste aanroep), maar moet nog steeds via npm geïnstalleerd zijn.
+  external_node_modules = ["@sparticuz/chromium-min", "puppeteer-core"]
 
 [functions."scrape-realestate"]
-  # Immoweb via een echte browser laden duurt langer dan een gewone fetch.
+  # Immoweb via een echte browser laden duurt langer dan een gewone fetch,
+  # en de allereerste ("koude") aanroep moet ook nog Chromium downloaden.
   # Let op: gratis Netlify-plannen hanteren doorgaans een harde limiet van
   # ~10 seconden per functie-aanroep, ongeacht deze instelling. Als de
   # aanroep steevast timeout, is een hoger Netlify-plan (of minder regio's
-  # tegelijk opvragen) de enige oplossing.
+  # tegelijk opvragen) de enige overblijvende oplossing.
   timeout = 26
 
 [[headers]]
